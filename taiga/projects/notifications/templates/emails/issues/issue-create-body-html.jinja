@@ -9,3 +9,13 @@
     <p><small>The Taiga Team</small></p>
     {% endtrans %}
 {% endblock %}
+
+{% block extra %}
+<div itemscope itemtype="http://schema.org/EmailMessage">
+    <div itemprop="action" itemscope itemtype="http://schema.org/ViewAction">
+        <link itemprop="url" href="{{ resolve_front_url("issue", project.slug, snapshot.ref) }}"></link>
+        <meta itemprop="name" content="{{ _("See issue #{ref}").format(ref=snapshot.ref) }}"></meta>
+    </div>
+    <meta itemprop="description" content="{{ _("See issue #{ref} '{subject}' detail page").format(ref=snapshot.ref, subject=snapshot.subject) }}"></meta>
+</div>
+{% endblock %}

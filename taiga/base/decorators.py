@@ -44,37 +44,3 @@ def list_route(methods=['get'], **kwargs):
         func.kwargs = kwargs
         return func
     return decorator
-
-
-def link(**kwargs):
-    """
-    Used to mark a method on a ViewSet that should be routed for detail GET requests.
-    """
-    msg = 'link is pending deprecation. Use detail_route instead.'
-    warnings.warn(msg, PendingDeprecationWarning, stacklevel=2)
-
-    def decorator(func):
-        func.bind_to_methods = ['get']
-        func.detail = True
-        func.permission_classes = kwargs.get('permission_classes', [])
-        func.kwargs = kwargs
-        return func
-
-    return decorator
-
-
-def action(methods=['post'], **kwargs):
-    """
-    Used to mark a method on a ViewSet that should be routed for detail POST requests.
-    """
-    msg = 'action is pending deprecation. Use detail_route instead.'
-    warnings.warn(msg, PendingDeprecationWarning, stacklevel=2)
-
-    def decorator(func):
-        func.bind_to_methods = methods
-        func.detail = True
-        func.permission_classes = kwargs.get('permission_classes', [])
-        func.kwargs = kwargs
-        return func
-
-    return decorator

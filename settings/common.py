@@ -358,7 +358,17 @@ LOGGING = {
             "level": "ERROR",
             "filters": ["require_debug_false"],
             "class": "django.utils.log.AdminEmailHandler",
-        }
+        },
+        'logstash': {
+            'level': 'INFO',
+            'class': 'logstash.TCPLogstashHandler',
+            'host': 'localhost',
+            'port': 5000,
+            'version': 1, # Version of logstash event schema. Default value: 0 (for backward compatibility of the library)
+            'message_type': 'taiga-bi',  # 'type' field in logstash message. Default value: 'logstash'.
+            # 'fqdn': False, # Fully qualified domain name. Default value: false.
+            #'tags': ['tag1', 'tag2'], # list of tags. Default: None.
+        },
     },
     "loggers": {
         "django": {
@@ -379,6 +389,11 @@ LOGGING = {
         "taiga": {
             "handlers": ["console"],
             "level": "DEBUG",
+            "propagate": False,
+        },
+        "bi": {
+            "handlers": ["logstash"],
+            "level": "INFO",
             "propagate": False,
         }
     }

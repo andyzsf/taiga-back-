@@ -36,6 +36,7 @@ from taiga.base.filters import PermissionBasedFilterBackend
 from taiga.base.api.utils import get_object_or_404
 from taiga.base.filters import MembersFilterBackend
 from taiga.base.mails import mail_builder
+from taiga.base.logger import bilogger
 from taiga.projects.votes import services as votes_service
 from taiga.users.services import get_user_by_username_or_email
 from easy_thumbnails.source_generators import pil_image
@@ -131,11 +132,13 @@ class UsersViewSet(ModelCrudViewSet):
         request_data = stream is not None and stream.GET or None
         user_cancel_account_signal.send(sender=user.__class__, user=user, request_data=request_data)
         user.cancel()
+        bilogger(request, self, obj=user)
         return response.NoContent()
 
     @list_route(methods=["GET"])
     def by_username(self, request, *args, **kwargs):
         username = request.QUERY_PARAMS.get("username", None)
+        bilogger(request, self, username=username)
         return self.retrieve(request, username=username)
 
     @list_route(methods=["POST"])
@@ -145,6 +148,7 @@ class UsersViewSet(ModelCrudViewSet):
         self.check_permissions(request, "password_recovery", None)
 
         if not username_or_email:
+            bilogger(request, self, success=False, error="invalid-username-or-email")
             raise exc.WrongArguments(_("Invalid username or email"))
 
         user = get_user_by_username_or_email(username_or_email)
@@ -154,6 +158,7 @@ class UsersViewSet(ModelCrudViewSet):
         email = mail_builder.password_recovery(user, {"user": user})
         email.send()
 
+        bilogger(request, self, obj=user)
         return response.Ok({"detail": _("Mail sended successful!")})
 
     @list_route(methods=["POST"])
@@ -166,17 +171,20 @@ class UsersViewSet(ModelCrudViewSet):
 
         serializer = serializers.RecoverySerializer(data=request.DATA, many=False)
         if not serializer.is_valid():
+            bilogger(request, self, success=False, error="invalid-token-data")
             raise exc.WrongArguments(_("Token is invalid"))
 
         try:
             user = models.User.objects.get(token=serializer.data["token"])
         except models.User.DoesNotExist:
+            bilogger(request, self, success=False, error="not-existing-token")
             raise exc.WrongArguments(_("Token is invalid"))
 
         user.set_password(serializer.data["password"])
         user.token = None
         user.save(update_fields=["password", "token"])
 
+        bilogger(request, self, obj=user)
         return response.NoContent()
 
     @list_route(methods=["POST"])
@@ -192,19 +200,24 @@ class UsersViewSet(ModelCrudViewSet):
         # NOTE: GitHub users have no password yet (request.user.passwor == '') so
         #       current_password can be None
         if not current_password and request.user.password:
+            bilogger(request, self, success=False, error="not-current-password-received")
             raise exc.WrongArguments(_("Current password parameter needed"))
 
         if not password:
+            bilogger(request, self, success=False, error="not-new-password-received")
             raise exc.WrongArguments(_("New password parameter needed"))
 
         if len(password) < 6:
+            bilogger(request, self, success=False, error="invalid-password-length")
             raise exc.WrongArguments(_("Invalid password length at least 6 charaters needed"))
 
         if current_password and not request.user.check_password(current_password):
+            bilogger(request, self, success=False, error="invalid-current-password")
             raise exc.WrongArguments(_("Invalid current password"))
 
         request.user.set_password(password)
         request.user.save(update_fields=["password"])
+        bilogger(request, self)
         return response.NoContent()
 
     @list_route(methods=["POST"])
@@ -217,17 +230,20 @@ class UsersViewSet(ModelCrudViewSet):
         avatar = request.FILES.get('avatar', None)
 
         if not avatar:
+            bilogger(request, self, success=False, error="not-avatar-recived")
             raise exc.WrongArguments(_("Incomplete arguments"))
 
         try:
             pil_image(avatar)
         except Exception:
+            bilogger(request, self, success=False, error="invalid-avatar-format")
             raise exc.WrongArguments(_("Invalid image format"))
 
         request.user.photo = avatar
         request.user.save(update_fields=["photo"])
         user_data = self.admin_serializer_class(request.user).data
 
+        bilogger(request, self)
         return response.Ok(user_data)
 
     @list_route(methods=["POST"])
@@ -239,6 +255,8 @@ class UsersViewSet(ModelCrudViewSet):
         request.user.photo = None
         request.user.save(update_fields=["photo"])
         user_data = self.admin_serializer_class(request.user).data
+
+        bilogger(request, self)
         return response.Ok(user_data)
 
     @list_route(methods=["POST"])
@@ -248,12 +266,14 @@ class UsersViewSet(ModelCrudViewSet):
         """
         serializer = serializers.ChangeEmailSerializer(data=request.DATA, many=False)
         if not serializer.is_valid():
+            bilogger(request, self, success=False, error="invalid-data-format")
             raise exc.WrongArguments(_("Invalid, are you sure the token is correct and you "
                                        "didn't use it before?"))
 
         try:
             user = models.User.objects.get(email_token=serializer.data["email_token"])
         except models.User.DoesNotExist:
+            bilogger(request, self, success=False, error="invalid-token")
             raise exc.WrongArguments(_("Invalid, are you sure the token is correct and you "
                                        "didn't use it before?"))
 
@@ -263,6 +283,7 @@ class UsersViewSet(ModelCrudViewSet):
         user.email_token = None
         user.save(update_fields=["email", "new_email", "email_token"])
 
+        bilogger(request, self, obj=user)
         return response.NoContent()
 
     @list_route(methods=["GET"])
@@ -272,6 +293,7 @@ class UsersViewSet(ModelCrudViewSet):
         """
         self.check_permissions(request, "me", None)
         user_data = self.admin_serializer_class(request.user).data
+        bilogger(request, self)
         return response.Ok(user_data)
 
     @list_route(methods=["POST"])
@@ -281,6 +303,7 @@ class UsersViewSet(ModelCrudViewSet):
         """
         serializer = serializers.CancelAccountSerializer(data=request.DATA, many=False)
         if not serializer.is_valid():
+            bilogger(request, self, success=False, error="invalid-data-format")
             raise exc.WrongArguments(_("Invalid, are you sure the token is correct?"))
 
         try:
@@ -289,12 +312,15 @@ class UsersViewSet(ModelCrudViewSet):
                 max_age=max_age_cancel_account)
 
         except exc.NotAuthenticated:
+            bilogger(request, self, success=False, error="invalid-token")
             raise exc.WrongArguments(_("Invalid, are you sure the token is correct?"))
 
         if not user.is_active:
+            bilogger(request, self, success=False, error="inactive-account")
             raise exc.WrongArguments(_("Invalid, are you sure the token is correct?"))
 
         user.cancel()
+        bilogger(request, self, obj=user)
         return response.NoContent()
 
     @detail_route(methods=["GET"])
@@ -312,12 +338,14 @@ class UsersViewSet(ModelCrudViewSet):
         else:
             serializer = self.serializer_class(self.object_list, many=True)
 
+        bilogger(request, self, obj=user)
         return response.Ok(serializer.data)
 
     @detail_route(methods=["GET"])
     def stats(self, request, *args, **kwargs):
         user = get_object_or_404(models.User, **kwargs)
         self.check_permissions(request, "stats", user)
+        bilogger(request, self, obj=user)
         return response.Ok(services.get_stats_for_user(user, request.user))
 
     @detail_route(methods=["GET"])
@@ -353,6 +381,7 @@ class UsersViewSet(ModelCrudViewSet):
                 # stories, tasks and issues are voted objects
                 response_data.append(serializers.VotedObjectSerializer(elem, **extra_args_voted).data )
 
+        bilogger(request, self, for_user=forfor__user, from_user=from_user)
         return response.Ok(response_data)
 
     @detail_route(methods=["GET"])
@@ -375,6 +404,7 @@ class UsersViewSet(ModelCrudViewSet):
 
         response_data = [serializers.LikedObjectSerializer(elem, **extra_args).data for elem in elements]
 
+        bilogger(request, self, for_user=forfor__user, from_user=from_user)
         return response.Ok(response_data)
 
     @detail_route(methods=["GET"])
@@ -398,6 +428,7 @@ class UsersViewSet(ModelCrudViewSet):
 
         response_data = [serializers.VotedObjectSerializer(elem, **extra_args).data for elem in elements]
 
+        bilogger(request, self, for_user=forfor__user, from_user=from_user)
         return response.Ok(response_data)
 
 ######################################################

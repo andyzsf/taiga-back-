@@ -49,6 +49,7 @@ def get_user_by_username_or_email(username_or_email):
                        Q(email=username_or_email))
 
     if len(qs) == 0:
+        # TODO: REVIEW WRONG ARGUMENTS EXCEPTIONS TO INCLUDE IT ON THE BILOGGER
         raise exc.WrongArguments(_("Username or password does not matches user."))
 
     user = qs[0]

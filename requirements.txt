@@ -35,3 +35,4 @@ git+https://github.com/Xof/django-pglocks.git@dbb8d7375066859f897604132bd437832d
 pyjwkest==1.0.9
 python-dateutil==2.4.2
 netaddr==0.7.18
+python-logstash==0.4.5

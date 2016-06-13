@@ -19,6 +19,7 @@
 import random
 import datetime
 from os import path
+from hashlib import sha1
 
 
 from django.core.management.base import BaseCommand
@@ -246,15 +247,20 @@ class Command(BaseCommand):
                 # create a wiki page
                 wiki_page = self.create_wiki(project, "home")
 
+            project.refresh_from_db()
+
+            # Set color for some tags:
+            for tag in project.tags_colors:
+                if self.sd.boolean():
+                    tag[1] = self.generate_color(tag[0])
+
             # Set a value to total_story_points to show the deadline in the backlog
             project_stats = get_stats_for_project(project)
             defined_points = project_stats["defined_points"]
             project.total_story_points = int(defined_points * self.sd.int(5,12) / 10)
-            project.refresh_from_db()
             project.save()
 
             self.create_likes(project)
-
 
     def create_attachment(self, obj, order):
         attached_file = self.sd.file_from_directory(*ATTACHMENT_SAMPLE_DATA)
@@ -535,3 +541,8 @@ class Command(BaseCommand):
                 obj.add_watcher(user)
             else:
                 obj.add_watcher(user, notify_level)
+
+    def generate_color(self, tag):
+        color = sha1(tag.encode("utf-8")).hexdigest()[0:6]
+        return "#{}".format(color)
+

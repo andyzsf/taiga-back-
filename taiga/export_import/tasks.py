@@ -19,6 +19,7 @@
 import datetime
 import logging
 import sys
+import gzip
 
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
@@ -41,14 +42,20 @@ import resource
 
 
 @app.task(bind=True)
-def dump_project(self, user, project):
-    path = "exports/{}/{}-{}.json".format(project.pk, project.slug, self.request.id)
-    storage_path = default_storage.path(path)
-
+def dump_project(self, user, project, dump_format):
     try:
+        if dump_format == "gzip":
+            path = "exports/{}/{}-{}.json.gz".format(project.pk, project.slug, self.request.id)
+            storage_path = default_storage.path(path)
+            with default_storage.open(storage_path, mode="wb") as outfile:
+                services.render_project(project, gzip.GzipFile(fileobj=outfile))
+        else:
+            path = "exports/{}/{}-{}.json".format(project.pk, project.slug, self.request.id)
+            storage_path = default_storage.path(path)
+            with default_storage.open(storage_path, mode="wb") as outfile:
+                services.render_project(project, outfile)
+
         url = default_storage.url(path)
-        with default_storage.open(storage_path, mode="w") as outfile:
-            services.render_project(project, outfile)
 
     except Exception:
         # Error

@@ -62,6 +62,16 @@ def render_project(project, outfile, chunk_size = 8190):
             if attachments_field:
                 attachments_field.initialize(parent=field, field_name="attachments")
 
+            if field_name == 'wiki_pages':
+                field_serializer = serializers.WikiPageExportSerializer
+                field_serializer.to_value = field_serializer.to_native
+            elif field_name == 'user_stories':
+                field_serializer = serializers.UserStoryExportSerializerSerpy
+            elif field_name == 'tasks':
+                field_serializer = serializers.TaskExportSerializerSerpy
+            elif field_name == 'issues':
+                field_serializer = serializers.IssueExportSerializerSerpy
+
             first_item = True
             for item in value.iterator():
                 # Avoid writing "," in the last element
@@ -70,8 +80,7 @@ def render_project(project, outfile, chunk_size = 8190):
                 else:
                     first_item = False
 
-
-                dumped_value = json.dumps(field.to_native(item))
+                dumped_value = json.dumps(field_serializer().to_value(item))
                 writing_value = dumped_value[:-1]+ ',\n    "attachments": [\n'
                 outfile.write(writing_value.encode())
 

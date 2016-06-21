@@ -61,6 +61,8 @@ class TagsColorsResourceMixin:
         data = serializer.data
         services.edit_tag(project,
                           data.get("from_tag"),
+                          update_tag="to_tag" in request.DATA,
+                          update_color="color" in request.DATA,
                           to_tag=data.get("to_tag", None),
                           color=data.get("color", None))
 

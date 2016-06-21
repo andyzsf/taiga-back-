@@ -33,14 +33,14 @@ def create_tag(project, tag, color):
     project.save(update_fields=["tags_colors"])
 
 
-def edit_tag(project, from_tag, to_tag=None, color=None):
+def edit_tag(project, from_tag, update_tag=False, update_color=False, to_tag=None, color=None):
     tags_colors = dict(project.tags_colors)
 
-    if color is not None:
+    if update_color:
         tags_colors = dict(project.tags_colors)
         tags_colors[from_tag] = color
 
-    if to_tag is not None:
+    if update_tag:
         color = dict(project.tags_colors)[from_tag]
         sql = """
             UPDATE userstories_userstory
@@ -60,7 +60,6 @@ def edit_tag(project, from_tag, to_tag=None, color=None):
         cursor.execute(sql)
 
         tags_colors[to_tag] = tags_colors.pop(from_tag)
-
 
     project.tags_colors = list(tags_colors.items())
     project.save(update_fields=["tags_colors"])

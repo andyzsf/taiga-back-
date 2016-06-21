@@ -1953,6 +1953,35 @@ def test_edit_tag_only_color(client, settings):
     assert issue.tags == ["tag"]
 
 
+def test_edit_tag_color_delete_color(client, settings):
+    user = f.UserFactory.create()
+    project = f.ProjectFactory.create(owner=user, tags_colors=[("tag", "#123123")])
+    user_story = f.UserStoryFactory.create(project=project, tags=["tag"])
+    task = f.TaskFactory.create(project=project, tags=["tag"])
+    issue = f.IssueFactory.create(project=project, tags=["tag"])
+
+    role = f.RoleFactory.create(project=project, permissions=["view_project"])
+    membership = f.MembershipFactory.create(project=project, user=user, role=role, is_admin=True)
+    url = reverse("projects-edit-tag", args=(project.id,))
+    client.login(user)
+    data = {
+        "from_tag": "tag",
+        "color": None
+    }
+
+    client.login(user)
+    response = client.json.post(url, json.dumps(data))
+    assert response.status_code == 200
+    project = Project.objects.get(id=project.pk)
+    assert project.tags_colors == [["tag", None]]
+    user_story = UserStory.objects.get(id=user_story.pk)
+    assert user_story.tags == ["tag"]
+    task = Task.objects.get(id=task.pk)
+    assert task.tags == ["tag"]
+    issue = Issue.objects.get(id=issue.pk)
+    assert issue.tags == ["tag"]
+
+
 def test_edit_tag(client, settings):
     user = f.UserFactory.create()
     project = f.ProjectFactory.create(owner=user, tags_colors=[("tag", "#123123")])
